@@ -6,32 +6,44 @@ output: word_document
 ---
 
 Analysis:
-- separate based on wheter parent or child comment
+- separate based on whether parent or child comment
 - get sentiment of a post by taking average comment sentiment
 - add a column to Shen's comment files to add sentiment
 - add columns to Ben's movie file to show normalized sentiment
 - graph normalized sentiments on a boxplot
-- get dates of trailer and release date from URLs - ME
+- get dates of trailer and release date from URLs - Shen
+- get days of the week and dummy variables - ME
 - get Rotten Tomato scores - user and critic scores - ME
- - get Tomatometer score => implies dummy variable - ME
- - get Certified Fresh score => implied dummy variable - ME
+ - get Tomatometer score => dummy variable - ME
+ - get Certified Fresh score => dummy variable - ME
 
 ```{r}
-setwd("~/OneDrive - University of Iowa/Social Analytics/Social-Analytics-Group-Project")
-df = read.csv('movies.csv')
-# df$TomatoMeter = ''
-# df$AudienceScore = ''
-# df$X = NULL
+# library(fastDummies)
+# setwd("~/OneDrive - University of Iowa/Social Analytics/Social-Analytics-Group-Project")
 
-lstTM = list(.93, .71, .82, .76, .55, .63, .98, .94, .69, .91, .90, .84, .94, .98, .94, .72, .29, .74, .85, .26, .91, .71, .67, .59, .76, .92, .85, .93, .93, .85, .96, .47, .93, .65, .60, .30, .97, .84, .36, .94, .52, .78, .90, .79, .68, .52, .97, .57, .71)
-lstAS = list(.93, .78, .82, .83, .49, .61, .89, .87, .66, .91, .89, .86, .84, .92, .86, .62, .63, .79, .90, .59, .42, .80, .72, .53, .87, .87, .87, .87, .83, .91, .79, .48, .84, .74, .85, .81, .88, .85, .54, .90, .88, .92, .95, .45, .88, .86, .94, .94, .87) 
+df <- read.csv('movies.csv')
 
-df$TomatoMeter = lstTM
-df$AudienceScore = lstAS
-df$Fresh = ifelse(df$TomatoMeter >= .60, 1, 0)
-df$CertifiedFresh = ifelse(df$TomatoMeter >= .75, 1, 0)
+# Numbers collected from Rotten Tomatoes
+lstTM <- c(.93, .71, .82, .76, .55, .63, .98, .94, .69, .91, .90, .84, .94, .98, .94, .72, .29, .74, .85, .26, .91, .71, .67, .59, .76, .92, .85, .93, .93, .85, .96, .47, .93, .65, .60, .30, .97, .84, .36, .94, .52, .78, .90, .79, .68, .52, .97, .57, .71)
+lstAS <- c(.93, .78, .82, .83, .49, .61, .89, .87, .66, .91, .89, .86, .84, .92, .86, .62, .63, .79, .90, .59, .42, .80, .72, .53, .87, .87, .87, .87, .83, .91, .79, .48, .84, .74, .85, .81, .88, .85, .54, .90, .88, .92, .95, .45, .88, .86, .94, .94, .87) 
 
-lstTrailer = list()
-lstRelease = list()
-lstDayofWeek = list()
+# Creating columns and adding data
+df$TomatoMeter <- ''
+df$AudienceScore <- ''
+df$TomatoMeter <- lstTM
+df$AudienceScore <- lstAS
+df$Fresh <- ifelse(df$TomatoMeter >= .60, 1, 0)
+df$CertifiedFresh <- ifelse(df$TomatoMeter >= .75, 1, 0)
+
+# Transforming columns
+df$date_trailer <- as.Date(df$date_trailer)
+df$date_release <- as.Date(df$date_release)
+
+# Adding days of the week
+df$day_trailer <- weekdays(df$date_trailer)
+df$day_release <- weekdays(df$date_release)
+
+# Adding dummy variables
+df <- dummy_cols(df, select_columns = 'day_trailer')
+df <- dummy_cols(df, select_columns = 'day_release')
 ```
