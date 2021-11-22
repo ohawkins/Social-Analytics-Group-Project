@@ -1,0 +1,174 @@
+---
+title: "Social Analytics Project"
+author: "Chenxi Li"
+date: "11/9/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Envrionment Setup
+
+
+ReyPosts <- data.frame(matrix(ncol = 3, nrow = 0))
+
+for (curr in list.files(".")) {
+  currdf <- read.csv(curr)
+  currdf$Name <- unlist(strsplit(curr, "_comments.csv"))
+  ReyPosts <- rbind(ReyPosts, currdf)
+}
+
+str(ReyPosts)
+
+
+
+```{r}
+#list.of.packages <- c("tm", "SnowballC", "RColorBrewer", "syuzhet", "ggplot2",
+#                      "gridExtra", "printr", "syuzhet", "worldcloud", "reshape2")
+#new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+#if(length(new.packages)) install.packages(new.packages)
+
+library(printr) 
+library(tm) 
+library(ggplot2) 
+library(reshape2) 
+library(SnowballC) 
+library(wordcloud) 
+library(wordcloud2) 
+library(syuzhet)
+```
+
+## Data Preparation
+
+### Define a text processing function
+
+```{r}
+preprocessing <-function(Corp) {
+  StripString=content_transformer(function(x, pattern) gsub(pattern, ' ', x)) 
+  SearchReplace=content_transformer(function(x, pattern1, pattern2) gsub(pattern1, pattern2, x)) 
+  latin2Ascii=content_transformer(function(x) iconv(x, 'latin1', 'ASCII', sub=' '))
+
+  Corp=tm_map(Corp, content_transformer(tolower)) 
+  Corp=tm_map(Corp, removeWords, stopwords("english")) 
+  Corp=tm_map(Corp, removePunctuation) 
+  Corp=tm_map(Corp, removeNumbers)
+  Corp=tm_map(Corp, stripWhitespace)
+  
+  #Corp=tm_map(Corp, StripString, 'http[[:alnum:]]*') 
+  #Corp=tm_map(Corp, StripString, '[\r\n]') 
+  #Corp=tm_map(Corp, StripString, '[\t]')
+  #Corp=tm_map(Corp, SearchReplace, 'star wars', 'starwars')
+  
+  Corp=tm_map(Corp, latin2Ascii)
+  # Corp=tm_map(Corp, removeWords, c('whereisrey', 'rey', 'starwars')) 
+  Corp=tm_map(Corp, stemDocument)
+  return(Corp)
+}
+```
+
+### More Controlled Word Cloud
+```
+ReyCorp=VCorpus(VectorSource(ReyPosts$comment)) 
+ReyCorp=preprocessing(ReyCorp) 
+ReyTDM=TermDocumentMatrix(ReyCorp) 
+ReyDTM=DocumentTermMatrix(ReyCorp) 
+ReyDTM=removeSparseTerms(ReyDTM, 0.99)
+# Chunk 19
+ReyFreq=colSums(as.matrix(ReyDTM)) 
+ReyFreq=sort(ReyFreq, decreasing = T) 
+#cbind(ReyFreq)
+```
+
+
+## Examine the emotions 
+
+```{r}
+for (curr in list.files("datasets_cleaned/")[2:46]) {
+  
+  ReyPosts <- read.csv(paste("datasets_cleaned/", curr, sep = ""))
+  
+  ReyEmotion = data.frame(ReyPosts$parent, ReyPosts$comment, get_nrc_sentiment(as.character(ReyPosts$comment)),
+                          get_sentiment(as.character(ReyPosts$comment), method='syuzhet'),
+                          get_sentiment(as.character(ReyPosts$comment), method='bing'),
+                          get_sentiment(as.character(ReyPosts$comment), method='afinn'),
+                          get_sentiment(as.character(ReyPosts$comment), method='nrc')
+                          )
+  colnames(ReyEmotion)=c('Parent', 'Comment', 'Anger', 'Anticipation', 'Disgust', 'Fear', 'Joy', 'Sadness', 'Surprise', 'Trust', 'Negative', 'Positive', 'Synzhet', 'Bing', 'Afinn', 'NRC') 
+  
+  for (i in 1:nrow(ReyEmotion)) {
+    ReyEmotion$Emotion[i]=ifelse((table(as.numeric(ReyEmotion[i,3:10]))
+                                  [names(table(as.numeric(ReyEmotion[i,3:10])))==max(ReyEmotion[i,3:10])])==1,
+                                 'FindEmotion', '') 
+  
+    for (column in 3:10) {
+      ReyEmotion$Emotion[i]=ifelse(ReyEmotion$Emotion[i]=='FindEmotion', 
+                                   ifelse(ReyEmotion[i, column]==max(ReyEmotion[i, 3:10]),
+                                          colnames(ReyEmotion[column]),
+                                          ReyEmotion$Emotion[i]), ReyEmotion$Emotion[i])
+    } # if 'FindEmotion', then find and assign the emotion name that matches the maximum value
+  }
+  
+  curr
+  head(ReyEmotion)
+  
+  Sys.sleep(10)
+  
+  filename <- paste("datasets_cleaned/Sentiment/", 
+                    unlist(strsplit(curr, "_comments.csv")), "_sentiment.csv", sep = "")
+  write.csv(ReyEmotion, filename)
+  
+}
+
+```
+
+
+## Sentiment Summary
+
+```{r}
+
+library(readr)
+
+mean_df <- data.frame(matrix(ncol = 18, nrow = 0))
+colnames(mean_df) <- c("index_1","index_2","movie_name","code","Anger","Anticipation","Disgust","Fear","Joy","Sadness","Surprise","Trust","Negative","Positive","Synzhet","Bing","Afinn","NRC")
+
+
+for (curr in list.files("datasets_cleaned/Sentiment/")) {
+  
+  df <- read.csv(paste("datasets_cleaned/Sentiment/", curr, sep = ""))
+  
+  curr_ls <- unlist(strsplit(curr, "_"))
+  
+  means <- c(curr_ls[1:4], mean(df$Anger), mean(df$Anticipation), mean(df$Disgust), mean(df$Fear), mean(df$Joy), mean(df$Sadness), mean(df$Surprise), mean(df$Trust), mean(df$Negative),mean(df$Positive), mean(df$Synzhet), mean(df$Bing), mean(df$Afinn), mean(df$NRC))
+  
+  mean_df <- rbind(mean_df, means)
+
+  Sys.sleep(1)
+  
+}
+
+head(mean_df, 20)
+
+```
+
+
+
+## Merge Sentiment Summary with Moview_release & Movie_trailer
+
+```{r}
+library(readr)
+trailer <- read_csv("movies_trailer.csv")
+release <- read_csv("movies_release.csv")
+sentsum <- read_csv("movie_sent_mean.csv")
+filter(sentsum, )
+```
+
+
+
+```{r}
+```
+
+
+```{r}
+```
