@@ -17,9 +17,14 @@ Analysis:
  - get Tomatometer score => dummy variable - ME
  - get Certified Fresh score => dummy variable - ME
 
+- get scores in same table to do regression
+- get average sentiment for each movie, synzhet, bin, afinn
+- get top emotion of parent comments for each movie, release and trailer - ME, send code to Ben for him to do release
+- datasets_cleaned: trailer:0 release:1
+
 ```{r}
 # library(fastDummies)
-# setwd("~/OneDrive - University of Iowa/Social Analytics/Social-Analytics-Group-Project")
+setwd("~/OneDrive - University of Iowa/Social Analytics/Social-Analytics-Group-Project/Sentiment/")
 
 df <- read.csv('movies.csv')
 
@@ -46,4 +51,64 @@ df$day_release <- weekdays(df$date_release)
 # Adding dummy variables
 df <- dummy_cols(df, select_columns = 'day_trailer')
 df <- dummy_cols(df, select_columns = 'day_release')
+
+write.csv(df, 'movies_new.csv')
+```
+
+##Top Emotion from Parent Comments
+```{r}
+library(dplyr)
+library(fastDummies)
+library(janitor)
+setwd("~/OneDrive - University of Iowa/Social Analytics/Social-Analytics-Group-Project/Sentiment/")
+
+# get file names from Sentiment folder
+file_names <- list.files(pattern='*.csv', full.names=FALSE)
+
+# get dataframes
+dftrailer <- read.csv("../movies_0_trailer.csv")
+dfrelease <- read.csv("../movies_1_release.csv")
+
+# the big whammo!
+emotion <- function(filenames) {
+    # set empty vector for emotion strings
+    emotion_trailer <- c()
+    emotion_release <- c()
+    
+    for (i in filenames) {
+        # read in, filter comments, get highest row total
+        df <- read.csv(i)
+        dfparent <- filter(df, Parent == "True")
+        dfparent <- adorn_totals(dfparent, where='row')
+        rowmax <- max(dfparent[nrow(dfparent), (4:11)]) 
+        
+        # assign to variable
+        emotion_str <- names(dfparent)[which(dfparent == rowmax, arr.ind=T)[, "col"]] # Thanks Shen!
+        
+        # check to see if there's a weird first column
+        if (emotion_str[1] == "X") {
+            emotion_str <- emotion_str[2]
+        } else {
+            emotion_str <- emotion_str[1]
+        }
+        #with emotion_str, append it to appropriate vector
+        if (substr(i, 4, 4) == '1') {
+            emotion_trailer <- c(emotion_trailer, emotion_str)
+        } else if (substr(i, 4, 4) == '2') {
+            emotion_release <- c(emotion_release, emotion_str)
+        } else {print('YIKES')}
+    }
+    # assign to df
+    dftrailer$top_sentiment <- emotion_trailer
+    dfrelease$top_sentiment <- emotion_release
+    # put new dataframes in global env
+    dftrailer <<- dftrailer
+    dfrelease <<- dfrelease
+}
+
+emotion(file_names)
+
+# write to file
+write.csv(dftrailer, '../movies_trailer.csv')
+write.csv(dfrelease, '../movies_release.csv')
 ```
